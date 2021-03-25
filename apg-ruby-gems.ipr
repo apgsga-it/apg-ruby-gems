@@ -1,14 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="ClojureProjectResolveSettings">
-    <currentScheme>IDE</currentScheme>
-  </component>
   <component name="CodeComments" version="1">
     <comments />
-  </component>
-  <component name="ExternalStorageConfigurationManager" enabled="true" />
-  <component name="FrameworkDetectionExcludesConfiguration">
-    <file type="web" url="file://$PROJECT_DIR$/piper-patch-mig" />
   </component>
   <component name="InspectionProjectProfileManager">
     <profile version="1.0">
@@ -87,10 +80,7 @@
   </component>
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/apgdb/apgdb.iml" filepath="$PROJECT_DIR$/apgdb/apgdb.iml" />
-      <module fileurl="file://$PROJECT_DIR$/apgdbtests/apgdbtests.iml" filepath="$PROJECT_DIR$/apgdbtests/apgdbtests.iml" />
       <module fileurl="file://$PROJECT_DIR$/apgsecrets/apgsecrets.iml" filepath="$PROJECT_DIR$/apgsecrets/apgsecrets.iml" />
-      <module fileurl="file://$PROJECT_DIR$/apscli/apscli.iml" filepath="$PROJECT_DIR$/apscli/apscli.iml" />
       <module fileurl="file://$PROJECT_DIR$/apsmig/apsmig.iml" filepath="$PROJECT_DIR$/apsmig/apsmig.iml" />
       <module fileurl="file://$PROJECT_DIR$/artcli/artcli.iml" filepath="$PROJECT_DIR$/artcli/artcli.iml" />
     </modules>
@@ -98,51 +88,7 @@
   <component name="ProjectRootManager" version="2" languageLevel="JDK_15" project-jdk-name="rbenv: jruby-9.2.11.1" project-jdk-type="JRUBY_SDK">
     <output url="file://$PROJECT_DIR$/out" />
   </component>
-  <component name="PublishConfigData" serverName="che@jenkins.apgga.ch" remoteFilesAllowedToDisappearOnAutoupload="false">
-    <serverData>
-      <paths name="che@appl-patch.apgsga.ch">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$/artcli" web="/" />
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="che@jenkins.apgga.ch">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$/artcli" web="/" />
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-    </serverData>
-  </component>
-  <component name="SshConfigs">
-    <configs>
-      <sshConfig authType="OPEN_SSH" host="jenkins.apgsga.ch" id="8bb5b6dd-16cd-48b1-85a2-69978e9936ae" port="22" nameFormat="DESCRIPTIVE" username="che" />
-      <sshConfig authType="OPEN_SSH" host="appl-patch.apgsga.ch" id="623a7c00-7544-48d1-8739-cf6f5dccfe4a" port="22" nameFormat="DESCRIPTIVE" username="che" />
-    </configs>
-  </component>
   <component name="VcsDirectoryMappings">
-    <mapping directory="" vcs="Git" />
-  </component>
-  <component name="WebServers">
-    <option name="servers">
-      <webServer id="3671a4c1-55d2-4529-8878-47c83171dd98" name="che@jenkins.apgga.ch">
-        <fileTransfer accessType="SFTP" host="jenkins.apgsga.ch" port="22" sshConfigId="8bb5b6dd-16cd-48b1-85a2-69978e9936ae" sshConfig="che@jenkins.apgsga.ch:22 agent" authAgent="true">
-          <advancedOptions>
-            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
-          </advancedOptions>
-        </fileTransfer>
-      </webServer>
-      <webServer id="71e5ee94-64b4-4487-a1ef-6df2fa4123af" name="che@appl-patch.apgsga.ch">
-        <fileTransfer accessType="SFTP" host="appl-patch.apgsga.ch" port="22" sshConfigId="623a7c00-7544-48d1-8739-cf6f5dccfe4a" sshConfig="che@appl-patch.apgsga.ch:22 agent" authAgent="true">
-          <advancedOptions>
-            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
-          </advancedOptions>
-        </fileTransfer>
-      </webServer>
-    </option>
+    <mapping directory="$PROJECT_DIR$" vcs="Git" />
   </component>
 </project>

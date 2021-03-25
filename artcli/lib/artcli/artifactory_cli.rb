@@ -2,39 +2,132 @@
 
 module Artcli
   require 'artifactory'
-  require 'json'
+  require 'tty-progressbar'
+  require 'highline'
   class Cli
-    attr_reader :base_uri, :user, :passwd, :dry_run
+    attr_reader :art_client, :dry_run
 
     def initialize(base_uri, user, passwd, dry_run = false)
-      @user = user
-      @passwd = passwd
-      @base_uri = "https://#{base_uri}"
       @dry_run = dry_run
+      @art_client = Artifactory::Client.new(endpoint:  "https://#{base_uri}", username: user, password: passwd)
+      puts "\nRunning in mode dry_run <#{@dry_run}> , with user: <#{user}> and endpoint: <https://#{base_uri}>"
     end
 
+    def get_storage_info_all
+      result = @art_client.get('/api/storageinfo')
+      data = result['repositoriesSummaryList']
+      data
+      hsh = Hash.new
+      data.each do |row|
+        hsh[row['repoKey']] = row
+      end
+      hsh
+    end
+
+    def get_storage_info(repo)
+      hsh = get_storage_info_all
+      hsh[repo]
+    end
+
+
     def list_repositories(user_filter = '')
-      client = Artifactory::Client.new(endpoint: @base_uri, username: @user, password: @passwd)
-      local_repos = client.get('/api/repositories', { 'type' => 'local' })
+      local_repos = @art_client.get('/api/repositories', { 'type' => 'local' })
       filtered_repos = []
       local_repos.each do |repo|
         next unless user_filter.empty? || repo['key'].include?(user_filter.to_s)
-
         filtered_repos << repo['key']
       end
       filtered_repos
     end
 
-    def list_storage_uris(repositories = [])
+    def list_items_by_version(repo, versions, type = "file")
+      versionMatchers = ""
+      versions.each_with_index do |version,index|
+        separator = index < versions.size - 1 ? "," : ""
+        versionMatcher = (<<~V)
+            {"name": {"$match": "*#{version}*"}}#{separator}
+V
+        versionMatchers += versionMatcher
+      end
+      data = (<<~AQL)
+        items.find(
+         {
+            "$and": [
+              {
+                "repo": "#{repo}"
+              },
+              {
+                "type": "#{type}"
+              },
+              {
+                "$or":[
+                  #{versionMatchers}
+                ]
+              }
+            ]
+          }
+        )
+      AQL
+      @art_client.post('/api/search/aql',data, {"content-type" => "text/plain"} )
+    end
+
+    def delete_version_items_interactively(repo, version,type = "file")
+      result = list_items_by_version(repo, version, type)
+      items_to_delete = []
+      result['results'].each do |item|
+        item_tod = "#{@base_uri}/#{repo}/#{item['path']}/#{item['name']}"
+        items_to_delete << item_tod
+      end
+      puts "The following storage uri's have been selected to be cleaned:"
+      items_to_delete.each do |item|
+        puts item
+      end
+      cli = HighLine.new
+      ok = cli.ask('Ok to proceed y/n: ') { |q| q.validate = /(y|n)/ }
+      if ok != 'y'
+        puts 'Processing is being terminated'
+        exit
+      end
+     clean_repositories(items_to_delete)
+    end
+
+    def list_artifacts_recursive(parent_path, output,progress)
+      progress.advance
+      storage = @art_client.get(parent_path)
+      children = storage['children']
+      children.each do |child|
+        if child['folder'] == true
+          list_artifacts_recursive(parent_path + child['uri'], output,progress)
+        else
+          progress.advance
+          details_artifact(parent_path + child['uri'], output)
+        end
+      end
+    end
+
+    def details_artifact(path, output)
+      detail = @art_client.get(path)
+      mime_typ = detail['mimeType']
+      if (mime_typ != "application/java-archive" and mime_typ != "application/x-maven-pom+xml")
+        return
+      end
+      parts = detail['path'].split("/")
+      file_name = parts.pop
+      version = "\"#{parts.pop}\""
+      artifact_id = parts.pop
+      group_id = parts.join(".")
+      output << [group_id, artifact_id, version, file_name, detail['path'], detail['lastUpdated'], detail['size'], mime_typ]
+    end
+
+    def list_storage_uris_first_level(repositories = [])
       storage_uris = []
       if repositories.empty?
         puts 'Empty repositories list, nothing to do'
         return storage_uris
       end
       puts "About to retrieve the first level storage uri's of the following repositories: #{repositories}"
-      client = Artifactory::Client.new(endpoint: @base_uri, username: @user, password: @passwd)
       repositories.each do |repo_name|
-        storage = client.get("/api/storage/#{repo_name}")
+        storage = @art_client.get("/api/storage/#{repo_name}")
         puts storage
         children = storage['children']
         children.each do |child|
@@ -44,16 +137,15 @@ module Artcli
       storage_uris
     end
 
-    def clean_repositories(storage_uris = [], dry_run = false)
+    def clean_repositories(storage_uris = [])
       if storage_uris.empty?
         puts 'Nothing to clean, filtered repositories empty'
         return
       end
-      client = Artifactory::Client.new(endpoint: @base_uri, username: @user, password: @passwd)
       storage_uris.each do |uri|
-        if !dry_run
+        if !@dry_run
           puts "#{uri} will be deleted"
-          client.delete(uri.to_s)
+          @art_client.delete(uri.to_s)
           puts 'done'
         else
           puts "dry run: #{uri} would be deleted"
@@ -65,19 +157,63 @@ module Artcli
       puts "Filtered Local Repositories with filter: #{user_filter} "
       selected_repos = list_repositories(user_filter)
       puts "The following repos have been selected to be cleaned: #{selected_repos}"
-      ok = ask('Ok to proceed y/n: ')
+      cli = HighLine.new
+      ok = cli.ask('Ok to proceed y/n: ') { |q| q.validate = /(y|n)/ }
       if ok != 'y'
-        puts 'Processing is beeing terminated'
+        puts 'Processing is being terminated'
         exit
       end
-      storage_uris_to_deleted = list_storage_uris(selected_repos)
+      storage_uris_to_deleted = list_storage_uris_first_level(selected_repos)
       puts "The following storage uri's have been selected to be cleaned: #{storage_uris_to_deleted}"
-      ok = ask('Ok to proceed y/n: ')
+      cli = HighLine.new
+      ok = cli.ask('Ok to proceed y/n: ') { |q| q.validate = /(y|n)/ }
       if ok != 'y'
-        puts 'Processing is beeing terminated'
+        puts 'Processing is being terminated'
         exit
       end
       pp clean_repositories(storage_uris_to_deleted)
+    end
+  end
+  class CsvReport
+    attr_reader :art_cli, :output_file_name, :col_sep
+
+    def initialize(art_cli,output_file_name = 'report.csv',col_sep = ',')
+      @art_cli = art_cli
+      @output_file_name = output_file_name
+      @col_sep = col_sep
+    end
+    def artifacts_report(repository)
+      data = @art_cli.get_storage_info(repository)
+      total = data['foldersCount'] + data['filesCount']
+      puts "About to process #{total} Artifactory items (folders, artifacts) of repository : #{repository}. The output is written to #{@output_file_name} "
+      progress = TTY::ProgressBar.new("Progress: [:bar] :current/:total :percent ET::elapsed ETA::eta :rate/s", total: total, bar_format: :asterisk, incomplete: " ")
+      CSV.open(@output_file_name, "w", col_sep: @col_sep) do |csv|
+        csv << %w[group_id artifact_id version file path lastUpdated size mimeType]
+        @art_cli.list_artifacts_recursive("/api/storage/#{repository}",csv,progress)
+      end
+    end
+
+    def storage_info_report
+      puts "Generating Artifactory storage info report to: <#{@output_file_name}> "
+      data = @art_cli.get_storage_info_all
+      sorted_data = data.values.sort_by { |hsh| if hsh["usedSpace"] == '0 bytes'
+                                                  -1
+                                                else
+                                                  Filesize.from(hsh["usedSpace"]).to_i
+                                                end}.reverse
+      CSV.open(@output_file_name, "w", col_sep: @col_sep) do |csv|
+        first = nil
+        sorted_data.each do |hsh|
+          if hsh['repoKey'] != 'TOTAL'
+            if !first
+              first = true
+              csv << hsh.keys
+            end
+            csv << hsh.values
+          end
+        end
+      end
+      puts "Generated Artifactory storage info report to: <#{@output_file_name}>  done."
     end
   end
 end
